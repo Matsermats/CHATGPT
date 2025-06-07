@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 # Initialize Pygame
 pygame.init()
@@ -21,6 +22,10 @@ PADDLE_SPEED = 5
 BALL_SIZE = 10
 BALL_SPEED_X, BALL_SPEED_Y = 4, 4
 
+# Power-up settings
+POWERUP_SIZE = 15
+POWERUP_RESPAWN_TIME = 5000  # milliseconds
+
 # Game objects
 player1 = pygame.Rect(10, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
 player2 = pygame.Rect(WIDTH - 20, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
@@ -32,7 +37,18 @@ font = pygame.font.SysFont(None, 36)
 score1 = 0
 score2 = 0
 
+# Power-up object
+powerup_rect = pygame.Rect(
+    random.randint(20, WIDTH - 20 - POWERUP_SIZE),
+    random.randint(20, HEIGHT - 20 - POWERUP_SIZE),
+    POWERUP_SIZE,
+    POWERUP_SIZE,
+)
+powerup_visible = True
+powerup_timer = 0
+
 while True:
+    dt = clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -60,6 +76,21 @@ while True:
     if ball.colliderect(player1) or ball.colliderect(player2):
         BALL_SPEED_X *= -1
 
+    # Power-up collision
+    if powerup_visible and ball.colliderect(powerup_rect):
+        powerup_visible = False
+        if BALL_SPEED_X < 0:
+            paddle = player1
+        else:
+            paddle = player2
+        paddle.height += 20
+        # Keep paddle within bounds
+        if paddle.top < 0:
+            paddle.top = 0
+        if paddle.bottom > HEIGHT:
+            paddle.bottom = HEIGHT
+        powerup_timer = 0
+
     # Score and reset
     if ball.left <= 0:
         score2 += 1
@@ -70,14 +101,24 @@ while True:
         ball.center = (WIDTH // 2, HEIGHT // 2)
         BALL_SPEED_X *= -1
 
+    # Handle power-up respawn
+    if not powerup_visible:
+        powerup_timer += dt
+        if powerup_timer >= POWERUP_RESPAWN_TIME:
+            powerup_rect.x = random.randint(20, WIDTH - 20 - POWERUP_SIZE)
+            powerup_rect.y = random.randint(20, HEIGHT - 20 - POWERUP_SIZE)
+            powerup_visible = True
+            powerup_timer = 0
+
     screen.fill(BLACK)
     pygame.draw.rect(screen, WHITE, player1)
     pygame.draw.rect(screen, WHITE, player2)
     pygame.draw.ellipse(screen, WHITE, ball)
+    if powerup_visible:
+        pygame.draw.rect(screen, WHITE, powerup_rect)
     pygame.draw.aaline(screen, WHITE, (WIDTH//2, 0), (WIDTH//2, HEIGHT))
 
     score_text = font.render(f"{score1} - {score2}", True, WHITE)
     screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 20))
 
     pygame.display.flip()
-    clock.tick(60)
